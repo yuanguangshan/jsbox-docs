@@ -8,25 +8,118 @@ JSBox 里面引入了一个简单的 Console（控制台），可以用来输出
 
 # console
 
-`console` 对象提供了以下几个方法用于向控制台输出内容：
+`console` 是一个非常有用的调试工具，我们简化了系统 `console` 的接口，并提供了额外的方法。
 
-```js
-console.info("General Information")  // 输出通用信息
-console.warn("Warning Message")      // 输出警告信息
-console.error("Error Message")       // 输出错误信息
-console.assert(false, "Message")     // Assertion
-console.clear()                      // 清空控制台
-console.open()                       // 打开控制台
-console.close()                      // 关闭控制台
+方法 | 说明
+--- | ---
+log | 打印一个日志
+info | 打印一条信息
+warn | 打印一个警告
+error | 打印一个错误
+clear | 清空所有日志
+
+---
+
+## 文件内容解读与示例
+
+### 用途说明
+
+`console` 对象是 JavaScript 开发者进行**调试和日志输出**的基石工具。在 JSBox 中，`console` 的输出会显示在脚本编辑器底部的控制台面板中。它是你了解脚本执行流程、检查变量状态、定位错误发生位置的最直接方式。
+
+### 核心概念
+
+`console` 是一个**全局对象**，这意味着你可以在脚本的任何位置直接调用它的方法，无需任何导入或特殊设置。它提供了一系列不同语义级别的方法，用于区分不同重要性的日志信息。
+
+### 方法详解与示例
+
+#### 1. `console.log(message, ...args)`
+
+- **用途**: 最常用、最通用的日志输出方法。你可以用它来打印任何类型的数据，包括字符串、数字、布尔值、数组、对象等，帮助你追踪代码的执行流程或查看变量的当前值。
+- **特点**: 当打印对象或数组时，控制台通常会提供一个可展开的视图，让你能够深入检查其内部结构。
+
+**示例**：
+
+```javascript
+let userName = "JSBox User";
+let userAge = 25;
+let userSettings = {
+  darkMode: true,
+  notifications: ["email", "push"]
+};
+
+console.log("脚本开始执行...");
+console.log("用户名:", userName, "年龄:", userAge);
+console.log("用户设置:", userSettings);
+console.log("通知方式:", userSettings.notifications);
 ```
 
-同时控制台也支持通过输入框执行一些代码，执行结果也将被展示到控制台。
+#### 2. `console.info(message, ...args)`
 
-另外，当 JavaScript 异常被捕获到的时候，异常信息将会以 `error` 的形式展示到控制台。
+- **用途**: 用于打印提示性、信息性的内容。在语义上，它表示比普通 `log` 更具“信息性”的消息。在某些开发环境中，`info` 消息可能会有特殊的视觉标识（例如一个蓝色的小图标），但在 JSBox 中，其视觉表现通常与 `log` 类似。
 
-# 控制台使用方法
+**示例**：
 
-- 点击界面上的虫子按钮进入
-- 点击某一行查看全文内容
-- 长按某一行可以复制内容
-- 底部输入框输入内容可以调试代码
+```javascript
+console.info("正在初始化数据...");
+// ... 数据加载逻辑 ...
+console.info("数据加载完成，共获取到 100 条记录。");
+```
+
+#### 3. `console.warn(message, ...args)`
+
+- **用途**: 用于报告一些**非致命的警告信息**。当你的代码检测到一些潜在的问题，但这些问题不至于导致程序崩溃时，可以使用 `warn`。例如，使用了即将废弃的 API，或者某个函数的参数不符合最佳实践。
+- **特点**: 在控制台中，警告信息通常会以黄色背景或警告图标突出显示，提醒开发者注意。
+
+**示例**：
+
+```javascript
+function deprecatedFunction() {
+  console.warn("警告: deprecatedFunction() 已废弃，请改用 newFunction()。");
+  // ... 旧的逻辑 ...
+}
+
+deprecatedFunction();
+```
+
+#### 4. `console.error(message, ...args)`
+
+- **用途**: 用于输出**严重的错误信息**。当你的代码捕获到异常，或者发生了阻止程序正常运行的错误时，应该使用此方法。它通常表示程序遇到了一个需要立即关注的问题。
+- **特点**: 错误信息在控制台中通常以红色显示，并且经常会附带一个“堆栈跟踪”（Stack Trace），显示错误发生时函数的调用链，这对于快速定位问题根源至关重要。
+
+**示例**：
+
+```javascript
+try {
+  // 模拟一个可能出错的操作
+  const result = JSON.parse("这不是一个有效的 JSON");
+  console.log(result);
+} catch (e) {
+  console.error("发生了一个解析错误:", e.message);
+  console.error("错误对象:", e); // 打印完整的错误对象，包含堆栈信息
+}
+```
+
+#### 5. `console.clear()`
+
+- **用途**: 清空控制台中当前显示的所有日志信息。当日志输出过多，导致控制台混乱时，可以使用此方法来清屏，以便专注于后续的输出。
+
+**示例**：
+
+```javascript
+console.log("第一批日志...");
+console.log("...");
+
+// 稍后，清空控制台
+console.clear();
+
+console.log("第二批日志，控制台已清空。");
+```
+
+### 控制台界面交互
+
+- **进入控制台**: 在脚本编辑器界面，点击工具栏上的“虫子”图标即可进入控制台。
+- **查看详情**: 点击控制台中的某一行日志，可以查看其完整的文本内容，特别是对于长字符串或复杂对象。
+- **复制内容**: 长按某一行日志，可以将其内容复制到剪贴板。
+- **执行代码**: 控制台底部有一个输入框，你可以在这里输入 JavaScript 代码并执行。这对于在脚本运行过程中动态检查变量、测试函数或修改状态非常有用。
+
+`console` 是你调试 JSBox 脚本的得力助手。合理使用 `log`, `info`, `warn`, `error` 等不同级别的方法，将使你的调试过程更加高效和有条理。 

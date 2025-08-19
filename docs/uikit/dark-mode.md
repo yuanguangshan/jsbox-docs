@@ -162,3 +162,115 @@ WebView 对 Dark Mode 的适配属于比较独立的话题，请参考 [WebKit �
 为了更好地展示这套机制如何工作，我们准备了一个样例项目以供参考：https://github.com/cyanzhong/jsbox-dark-mode
 
 随着机制不断完善，之后可能会增加其他接口，让适配工作变得更简单。同时，`theme` 默认为 `light` 是过渡期的一个设置，之后可能会改为默认为 `auto`，方便仅使用默认控件的脚本直接完美支持 Dark Mode。
+
+---
+
+## 文件内容解读与示例
+
+### 用途说明
+
+本文档是为 JSBox 脚本适配 **深色模式（Dark Mode）** 的权威指南。深色模式是现代操作系统的一项重要功能，能减少眼部疲劳，并在 OLED 屏幕上节省电量。JSBox 提供了一套完整的 API，让你的脚本能够优雅地自动适应系统外观（亮色/暗色）的变化。
+
+### 适配三步曲
+
+文档最后总结了适配的核心步骤，这也是理解整个机制的最佳路径：
+
+1.  **开启自动主题 (`theme: "auto"`)**: 这是适配的第一步，也是最关键的一步。默认情况下，为了兼容旧脚本，所有脚本都以 `light` (亮色) 模式运行。你必须显式地将主题设置为 `auto`，脚本才会开始响应系统的外观变化。
+2.  **使用动态资源 (`$color`/`$image`)**: 对于颜色和图片，不要使用写死的值，而应该提供亮色和暗色两套资源。系统会根据当前模式自动选择合适的资源进行显示。
+3.  **处理动态变化 (`themeChanged` 事件)**: 对于那些无法使用动态资源（如 `borderColor`）或需要更复杂逻辑的 UI 调整，可以通过监听 `themeChanged` 事件来手动更新。
+
+### API 详解
+
+#### 1. `theme` 属性
+
+-   **作用**: 控制脚本的整体外观模式。
+-   **可选值**: `light` (强制亮色), `dark` (强制暗色), `auto` (跟随系统)。
+-   **设置范围**: 
+    -   **全局**: 通过 `$app.theme = "auto"` 或在 `config.json` 中设置，影响整个脚本。
+    -   **页面级**: 在 `$ui.push` 的 `props` 中设置，仅影响新推入的页面。
+    -   **视图级**: 在某个 view 的 `props` 中设置，仅影响该视图及其子视图。
+
+#### 2. `$color(light, dark)` - 动态颜色
+
+-   **作用**: 创建一个能根据系统外观自动改变的颜色。
+-   **用法**: 
+    -   `$color("#FFFFFF", "#000000")`: 亮色模式下为白色，暗色模式下为黑色。
+    -   `$color({ light: "white", dark: "black", black: "#000000" })`: 支持为纯黑模式（`black`）提供单独的颜色。
+    -   JSBox 还提供了一系列**语义化颜色**（如 `$color("primarySurface")`），它们已经内置了动态适配能力，是设置背景、文本颜色的首选。
+
+#### 3. `$image(light, dark)` - 动态图片
+
+-   **作用**: 创建一个能根据系统外观自动改变的图片对象。
+-   **用法**: `$image("light-icon.png", "dark-icon.png")`。脚本会根据当前模式加载对应的图片文件。
+-   **限制**: 不适用于 SF Symbols，因为 SF Symbols 的颜色应该通过 `tintColor` 配合动态颜色来控制。
+
+#### 4. `events: themeChanged`
+
+-   **作用**: 当系统外观（亮/暗）发生切换时触发的事件。
+-   **用法**: 在任何视图的 `events` 中定义 `themeChanged: (sender, isDarkMode) => { ... }`。
+-   **`isDarkMode`**: 一个布尔值，`true` 表示当前为暗色模式，`false` 为亮色模式。
+-   **适用场景**: 
+    -   修改不支持动态颜色的属性，如 `borderColor`。
+    -   执行更复杂的 UI 调整，比如根据模式改变视图的 `alpha` 透明度或布局。
+
+### 示例：创建一个完美适配深色模式的卡片
+
+```javascript
+// 1. 全局开启自动主题
+$app.theme = "auto";
+
+// 2. 定义动态颜色
+const cardBackgroundColor = $color("white", "#2C2C2E"); // 卡片背景色
+const textColor = $color("black", "white"); // 主要文字颜色
+const shadowColor = $color("gray"); // 阴影颜色
+
+$ui.render({
+  props: {
+    title: "深色模式适配",
+    bgcolor: $color("primarySurface") // 使用语义化颜色作为页面背景
+  },
+  views: [
+    {
+      type: "view",
+      props: {
+        bgcolor: cardBackgroundColor,
+        cornerRadius: 10,
+        shadow: {
+          radius: 5,
+          opacity: 0.2,
+          color: shadowColor,
+          offset: $point(0, 2)
+        }
+      },
+      layout: (make, view) => {
+        make.center.equalTo(view.super);
+        make.size.equalTo($size(200, 100));
+      },
+      views: [
+        {
+          type: "label",
+          props: {
+            text: "动态卡片",
+            font: $font("bold", 20),
+            textColor: textColor
+          },
+          layout: (make, view) => {
+            make.center.equalTo(view.super);
+          }
+        }
+      ],
+      events: {
+        // 3. 监听主题变化，手动更新边框
+        themeChanged: (sender, isDarkMode) => {
+          sender.borderColor = isDarkMode ? $color("darkGray") : $color("lightGray");
+          sender.borderWidth = 1;
+        }
+      }
+    }
+  ]
+});
+```
+
+### 总结
+
+为 JSBox 脚本适配深色模式是提升用户体验的重要一环。通过遵循“开启主题-使用动态资源-监听事件”的三步曲，开发者可以轻松构建出在任何外观模式下都表现出色的精美界面。

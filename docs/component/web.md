@@ -357,3 +357,102 @@ webView.notify({
 ```
 
 这将可以实现 Native 调用网页上面的方法。
+
+---
+
+## 文件内容解读与示例
+
+### 组件用途
+
+`web` 组件远不止是一个简单的网页查看器，它是在 JSBox 中嵌入一个功能完整的**浏览器核心**（基于 `WKWebView`）。这使它成为构建混合应用（Hybrid App）的基石，你可以无缝地融合 Web 技术的灵活性与 JSBox 原生能力的强大。
+
+### 核心概念：双向通信的桥梁
+
+`web` 组件最强大的地方在于它建立了一座连接 **JSBox 原生环境**与 **WebView 网页环境**的双向桥梁。
+
+#### 1. 从 Web 到 JSBox：`$notify`
+
+- **原理**: 在网页的 JavaScript 中，可以调用一个由 JSBox 注入的全局函数 `$notify(eventName, message)`。
+- **作用**: 这个函数会向 JSBox 的 `web` 组件发送一个信号，触发其 `events` 中对应 `eventName` 的事件处理器。
+- **示例**: 网页中的一个按钮被点击 -> 调用 `$notify("buttonClicked", { some: "data" })` -> 触发 JSBox 中 `events: { buttonClicked: data => { ... } }` 的逻辑。
+
+#### 2. 从 JSBox 到 Web：`eval`/`exec`
+
+- **原理**: 在 JSBox 的原生代码中，可以调用 `web` 视图实例的 `eval()` 或 `exec()` 方法。
+- **作用**: 这两个方法可以在 `web` 组件当前加载的页面上**执行任意的 JavaScript 代码**。
+- **示例**: JSBox 代码执行 `$("my-web").exec("document.body.style.backgroundColor = 'blue'")` -> 网页背景变为蓝色。
+
+### 关键特性
+
+- **加载方式**: 你可以通过 `url` 加载远程网页，也可以通过 `html` 加载一个完整的本地或内存中的 HTML 字符串。
+- **脚本注入 (`script` 属性)**: 这是一个非常实用的功能。通过 `script` 属性提供的 JavaScript 代码（或函数）会在**每一个页面加载完成时**自动注入并执行。这非常适合用来对网页进行通用改造，例如修改页面样式、或为页面元素批量绑定 `$notify` 事件。
+- **导航控制 (`decideNavigation` 事件)**: 这是一个强大的“守卫”事件。在页面将要跳转到新链接之前，此事件会被触发。你可以检查 `action.requestURL`，并返回 `true`（允许跳转）或 `false`（阻止跳转），从而实现对 WebView 内部导航行为的完全控制。
+
+### 示例代码：一个简单的混合应用
+
+下面的示例将加载一段自定义 HTML，其中包含一个按钮。当用户点击网页中的按钮时，会通过 `$notify` 通知 JSBox，JSBox 则会更新一个原生的 `label` 组件作为响应。
+
+```javascript
+// 1. 定义要加载的 HTML 内容
+const myHTML = `
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>body { font-family: -apple-system, sans-serif; text-align: center; padding-top: 50px; }</style>
+</head>
+<body>
+  <h2>这是 Web 视图内部</h2>
+  <button id="my-button">点击我</button>
+
+  <script>
+    // 2. 在网页的 JS 中，为按钮添加点击事件
+    document.getElementById("my-button").onclick = () => {
+      // 3. 调用 $notify 将消息发送回 JSBox
+      $notify("webEvent", { message: "Hello from Web!" });
+    };
+  </script>
+</body>
+</html>
+`;
+
+// 4. 渲染 UI
+$ui.render({
+  props: { title: "Web 组件示例" },
+  views: [
+    {
+      type: "label",
+      props: {
+        id: "status-label",
+        text: "等待来自 Web 的消息...",
+        align: $align.center
+      },
+      layout: make => {
+        make.top.left.right.inset(20);
+        make.height.equalTo(40);
+      }
+    },
+    {
+      type: "web",
+      props: {
+        html: myHTML
+      },
+      layout: make => {
+        make.top.equalTo(view.prev.bottom).offset(10);
+        make.left.right.bottom.equalTo(0);
+      },
+      events: {
+        // 5. 在 JSBox 中定义事件处理器，名称与 $notify 的第一个参数对应
+        webEvent: (data) => {
+          // 6. 更新原生 label 的文本
+          $("status-label").text = `收到消息: ${data.message}`;
+          $ui.toast("消息已收到！");
+        }
+      }
+    }
+  ]
+});
+```
+
+**代码解读**：
+
+这个例子清晰地展示了从 Web 到 JSBox 的单向通信流程。网页中的按钮通过 `$notify` 发送了一个名为 `webEvent` 的事件和一些数据。JSBox 端的 `web` 组件通过在 `events` 中定义同名函数 `webEvent` 来接收这个事件和数据，并据此更新了原生 `label` 的状态。这就是混合应用开发的核心模式。

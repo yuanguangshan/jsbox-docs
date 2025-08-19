@@ -151,3 +151,97 @@
 # 2017.07.15
 
 - 初始版本
+
+---
+
+## 文件内容解读
+
+### 文件用途
+
+本文档是一个 **更新日志 (Changelog)**，它按照时间倒序记录了 JSBox 应用和相关文档的所有重要更新。通过此文件，开发者和用户可以清晰地了解到每个版本的新增功能、改进内容以及修复的问题。这对于跟进应用发展、学习新特性以及在开发中利用最新功能至关重要。
+
+### 内容结构
+
+该日志的结构非常直观：
+
+- **日期标题**: 每个更新都以 `YYYY.MM.DD` 格式的日期作为标题，代表更新发布的大致时间。
+- **更新列表**: 在每个日期下方，使用无序列表（`-`）列出具体的更新条目。
+- **详情链接**: 大部分条目后面都附有一个 `[详情](...)` 链接，点击后可以跳转到该功能更详尽的说明文档，方便用户深入学习。
+
+### 重点功能展开说明
+
+下面对日志中提到的一些重要或较复杂的更新点进行展开说明，并提供示例。
+
+#### 1. 桌面小组件 (Home Widget) - 2020.10.03
+
+这是 JSBox 的一个里程碑式的功能，它允许用户使用 JavaScript 来创建 iOS 主屏幕上的小组件。这意味着你可以将脚本的输出以图形化、可定制的视图展示在桌面上，用于信息展示、快捷启动等。
+
+**难点解读**: 制作小组件的核心在于“渲染”和“时间线”。你不能在小组件里运行复杂的持续性任务，而是需要提供一个“快照”视图。JSBox 通过 `$widget` API 极大地简化了这一过程。
+
+**示例**: 创建一个简单的小组件，显示当前日期。
+
+```javascript
+// 一个简单的小组件脚本
+$widget.setTimeline({
+  render: ctx => {
+    // ctx.family 可以判断小组件的尺寸 (small, medium, large)
+    return {
+      type: "text",
+      props: {
+        text: new Date().toLocaleDateString(),
+        font: $font("bold", 20),
+        color: $color("primaryText")
+      }
+    }
+  }
+});
+```
+这个脚本定义了如何渲染小组件的视图，JSBox 会根据系统调度来更新它。
+
+#### 2. Lottie View - 2018.10.05
+
+Lottie 是 Airbnb 开源的一个动画库，可以实时渲染 After Effects 动画。JSBox 集成了 Lottie，让开发者可以轻松地在自己的脚本界面中加入高质量、复杂的矢量动画，而无需手动编写复杂的动画代码。
+
+**难点解读**: 传统上，在 UI 中实现复杂动画（例如，一个人物的行走动画）是非常困难的。Lottie 将这个过程简化为“设计师导出 JSON 文件，开发者加载 JSON 文件”。你需要一个 Lottie 动画的 JSON 文件，可以从 [LottieFiles](https://lottiefiles.com/) 等社区找到。
+
+**示例**: 加载并播放一个网络上的 Lottie 动画。
+
+```javascript
+$ui.render({
+  views: [
+    {
+      type: "lottie",
+      props: {
+        // 从网络加载一个动画资源
+        src: "https://assets2.lottiefiles.com/packages/lf20_Lpuvp8.json",
+        loop: true, // 循环播放
+        autoPlay: true // 自动播放
+      },
+      layout: $layout.fill
+    }
+  ]
+});
+```
+
+#### 3. Runtime 与 C 函数 - 2018.05.15
+
+这是 JSBox 中非常高级和强大的部分，主要面向有原生开发经验的用户。
+
+- **Runtime**: 指的是 Objective-C 的运行时特性。JSBox 允许你通过 `$objc` 等接口直接与 iOS 底层的 Objective-C API 交互。你可以创建、调用原生对象和方法，实现许多标准 JavaScript 无法做到的事情。
+- **C 函数**: 甚至可以调用 iOS 系统中的 C 语言函数。
+
+**难点解读**: 这部分功能的难点在于，它要求开发者对 Objective-C/Swift 的 API、内存管理（如指针、引用计数）有深入的了解。错误的使用可能导致应用闪退或行为异常。它是一把双刃剑，提供了无限可能性的同时也带来了更高的复杂度。
+
+**示例**: （概念性）使用 Runtime 获取当前设备的名称。
+
+```javascript
+// 获取 UIDevice 的单例
+const device = $objc("UIDevice").$currentDevice();
+// 调用 name 属性
+const deviceName = device.$name().jsValue(); // 通过 .jsValue() 转换为 JS 字符串
+
+console.log(deviceName);
+```
+这个例子展示了如何通过 `$objc` 调用原生代码，这比 JSBox 提供的 `$device.info.name` 要底层得多，但原理是相通的。
+
+通过这个更新日志，我们可以看到 JSBox 从一个简单的脚本运行器，逐步成长为一个功能全面、扩展性极强的自动化和开发工具。

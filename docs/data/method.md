@@ -107,7 +107,7 @@ systemSecondaryGroupedBackground | UIColor.secondarySystemGroupedBackgroundColor
 systemTertiaryGroupedBackground | UIColor.tertiarySystemGroupedBackgroundColor
 systemFill | UIColor.systemFillColor
 systemSecondaryFill | UIColor.secondarySystemFillColor
-systemTertiaryFill | UIColor.tertiarySystemFillColor
+systemTertiaryFill | UIColor.systemTertiaryFillColor
 systemQuaternaryFill | UIColor.quaternarySystemFillColor
 
 这些颜色在分别在 Light 和 Dark 模式下使用不同的颜色，例如 `$color("tintColor")` 会在 Light 模式下使用主题色，在 Dark 模式下使用比较亮的蓝色。
@@ -309,3 +309,124 @@ $ui.render({
 `color` 是可选参数，不填的话使用默认颜色。
 
 `size` 是可选参数，不填的话使用默认大小。
+
+---
+
+## 文件内容解读与示例
+
+### 用途说明
+
+本文档是 JSBox 中用于创建**原生数据类型**的**核心 API 参考**。这些以 `$` 开头的全局方法（如 `$rect`, `$color`, `$font` 等）充当了 JavaScript 世界与底层 iOS 原生世界之间的“翻译官”。它们将 JavaScript 的基本数据类型或简单对象，转换为 iOS 系统能够直接理解和使用的复杂数据结构（如 `CGRect`, `UIColor`, `UIFont` 等）。
+
+掌握这些方法是编写任何非简单 UI 脚本的基础，因为几乎所有 UI 组件的 `props` 都需要这些原生数据类型作为值。
+
+### 方法详解与示例
+
+#### 1. 几何尺寸与位置
+
+- **`$rect(x, y, width, height)`**: 创建一个矩形对象，常用于定义视图的 `frame` 或绘图区域。
+  ```javascript
+  const myRect = $rect(10, 20, 100, 50); // x=10, y=20, 宽度=100, 高度=50
+  // 示例：设置一个视图的 frame
+  // view.frame = myRect;
+  ```
+
+- **`$size(width, height)`**: 创建一个尺寸对象，常用于定义视图的 `size` 或图片的大小。
+  ```javascript
+  const mySize = $size(200, 300); // 宽度=200, 高度=300
+  // 示例：设置一个视图的固定大小
+  // make.size.equalTo(mySize);
+  ```
+
+- **`$point(x, y)`**: 创建一个点对象，常用于定义坐标或偏移量。
+  ```javascript
+  const myPoint = $point(50, 100); // x=50, y=100
+  // 示例：设置滚动视图的偏移量
+  // scrollView.contentOffset = myPoint;
+  ```
+
+- **`$insets(top, left, bottom, right)`**: 创建一个边距对象，常用于定义视图的内边距或外边距。
+  ```javascript
+  const myInsets = $insets(10, 20, 10, 20); // 上10, 左20, 下10, 右20
+  // 示例：设置文本视图的内边距
+  // textView.insets = myInsets;
+  ```
+
+#### 2. 颜色
+
+- **`$color(string)`**: 最常用的颜色创建方法，支持多种字符串格式。
+  - **十六进制**: `$color("#FF0000")` (红色)
+  - **常见颜色名称**: `$color("blue")` (蓝色), `$color("clear")` (透明)
+  - **语义化颜色**: `$color("primaryText")` (主文本颜色), `$color("backgroundColor")` (背景色)。这些颜色会根据系统的亮/暗模式自动适配，强烈推荐使用。
+  - **动态颜色 (亮/暗模式适配)**: `$color({ light: "#FFFFFF", dark: "#000000" })` 或 `$color("#FFFFFF", "#000000")`。在亮色模式下是白色，暗色模式下是黑色。
+
+- **`$rgb(red, green, blue)`**: 使用 0-255 的 RGB 值创建颜色。
+  ```javascript
+  const pureRed = $rgb(255, 0, 0);
+  ```
+
+- **`$rgba(red, green, blue, alpha)`**: 使用 0-255 的 RGB 值和 0.0-1.0 的透明度（alpha）创建颜色。
+  ```javascript
+  const semiTransparentBlue = $rgba(0, 0, 255, 0.5);
+  ```
+
+#### 3. 字体
+
+- **`$font(name, size)`**: 创建一个字体对象。
+  - `size`: 字体大小，必填。
+  - `name`: 字体名称，可选。可以是系统字体名称（如 `"Menlo"`），也可以是 `"bold"`（粗体）或 `"default"`（默认字体）。
+  ```javascript
+  const normalText = $font(16);
+  const titleFont = $font("bold", 20);
+  const codeFont = $font("Courier New", 14);
+  ```
+
+#### 4. 范围与索引
+
+- **`$range(location, length)`**: 创建一个表示文本范围的对象，常用于富文本处理中指定样式应用的区域。
+  ```javascript
+  const firstFiveChars = $range(0, 5); // 从第0个字符开始，长度为5
+  ```
+
+- **`$indexPath(section, row)`**: 创建一个索引路径对象，用于在 `list` 和 `matrix` 组件中精确地引用某个单元格的位置。
+  ```javascript
+  const firstSectionThirdRow = $indexPath(0, 2); // 第0个 section 的第2行 (索引从0开始)
+  ```
+
+#### 5. 二进制数据
+
+- **`$data(object)`**: 创建一个二进制数据对象，可以从多种来源构建。
+  - `string`: 从字符串创建，可指定编码。
+  - `path`: 从本地文件路径创建。
+  - `url`: 从网络 URL 创建。
+  - `base64`: 从 Base64 编码的字符串创建。
+  - `byteArray`: 从字节数组创建。
+  ```javascript
+  const helloData = $data({ string: "Hello, World!", encoding: 4 }); // UTF-8
+  const imageFileData = $data({ path: "assets/my_image.png" });
+  ```
+
+#### 6. 图片对象
+
+- **`$image(object, scale)`**: 创建一个图片对象，这个对象可以被 `image` 组件使用，也可以用于图片处理。
+  - `object`: 可以是本地文件路径、SF Symbols 名称、网络 URL 或 Base64 字符串。
+  - `scale`: 可选，图片比例。`0` 表示屏幕比例。
+  - **动态图片**: 类似 `$color`，也支持根据亮/暗模式自动切换图片资源：`$image({ light: "light_icon.png", dark: "dark_icon.png" })`。
+  ```javascript
+  const localIcon = $image("assets/app_icon.png");
+  const systemSymbol = $image("star.fill");
+  const remoteImage = $image("https://example.com/photo.jpg");
+  ```
+
+#### 7. 内置图标
+
+- **`$icon(code, color, size)`**: 获取 JSBox 内置的图标。`code` 是图标的编号，`color` 和 `size` 是可选参数。
+  ```javascript
+  const settingsIcon = $icon("001", $color("blue"), $size(24, 24));
+  // 示例：在 button 中使用
+  // props: { icon: settingsIcon }
+  ```
+
+### 总结
+
+这些 `$` 开头的方法是 JSBox 脚本与 iOS 原生 API 交互的基石。它们确保了数据在 JavaScript 和原生层之间能够正确、高效地传递。熟练掌握这些方法，是编写任何复杂 JSBox 脚本的必经之路。 

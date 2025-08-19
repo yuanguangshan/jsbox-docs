@@ -91,7 +91,7 @@ const text = `**Bold** *Italic* or __Bold__ _Italic_
 
 [Inline Link](https://docs.xteko.com) <https://docs.xteko.com>
 
-_Nested **styles**_`
+_Nested **styles**`
 
 $ui.render({
   views: [
@@ -310,3 +310,111 @@ $ui.render({
   ]
 });
 ```
+```
+
+--- 
+
+## 文件内容解读与示例
+
+### 组件用途
+
+`text` 组件是一个功能强大的**多行文本视图**。与只能输入单行文本的 `input` 组件不同，`text` 专为处理大段文本而设计。它的核心用途有两个：
+
+1.  **多行文本编辑器**：作为输入框时（`editable: true`），它是构建笔记应用、代码编辑器或任何长文本输入界面的基础。
+2.  **富文本展示器**：作为展示器时（`editable: false`），它能渲染包含多种样式的“富文本”（Attributed String），效果远超 `label` 组件。
+
+此外，`text` 组件继承自 `scroll`，因此它天生支持滚动，能容纳超出其可视范围的大量文本。
+
+### 核心概念：`text` vs. `styledText`
+
+- **`text` 属性**: 用于处理**纯文本**。当你只需要一个简单的、没有特殊格式的多行输入框时，使用此属性。
+
+- **`styledText` 属性**: 用于处理**富文本**，这是 `text` 组件最强大的特性。它有两种使用方式：
+  1.  **简单 Markdown 模式**: 直接给 `styledText` 赋一个包含 Markdown 语法的字符串，`text` 组件会自动渲染出粗体、斜体和链接等基本样式。
+  2.  **精细样式数组模式**: 给 `styledText` 赋一个包含 `text` 和 `styles` 两个键的对象。`styles` 是一个样式规则数组，每个规则对象都通过 `range`（文字范围）来为文本的特定部分精确地指定 `font`、`color`、`underlineStyle` 等数十种样式。这是实现复杂富文本编辑和展示的关键。
+
+### 示例代码：一个迷你富文本编辑器
+
+下面的示例将创建一个带工具栏的文本编辑器，用户可以选择文本，然后点击按钮将其变为粗体或斜体，以此来演示如何动态地读写 `styledText`。
+
+```javascript
+$ui.render({
+  props: { title: "Text 组件示例" },
+  views: [
+    {
+      // 工具栏
+      type: "stack",
+      props: {
+        axis: $stackViewAxis.horizontal,
+        distribution: $stackViewDistribution.fillEqually,
+        spacing: 10
+      },
+      layout: make => {
+        make.top.left.right.inset(10);
+        make.height.equalTo(32);
+      },
+      views: [
+        { type: "button", title: "加粗", events: { tapped: () => applyStyle("bold") } },
+        { type: "button", title: "斜体", events: { tapped: () => applyStyle("italic") } },
+        { type: "button", title: "下划线", events: { tapped: () => applyStyle("underline") } }
+      ]
+    },
+    {
+      // 文本编辑区
+      type: "text",
+      props: {
+        id: "editor",
+        text: "在这里选择一段文字，然后点击上方按钮应用样式。",
+        font: $font(18)
+      },
+      layout: make => {
+        make.top.equalTo(view.prev.bottom).offset(10);
+        make.left.right.bottom.inset(10);
+      }
+    }
+  ]
+});
+
+function applyStyle(type) {
+  const editor = $("editor");
+  const { location, length } = editor.selectedRange;
+
+  if (length === 0) {
+    $ui.toast("请先选择一段文字");
+    return;
+  }
+
+  // 获取当前的 styledText 对象，如果不存在则基于当前 text 创建
+  let styled = editor.styledText || { text: editor.text, styles: [] };
+
+  // 创建新的样式规则
+  let newStyle = { range: $range(location, length) };
+  const baseFont = editor.font || $font(18);
+
+  if (type === "bold") {
+    newStyle.font = $font("bold", baseFont.pointSize);
+  } else if (type === "italic") {
+    newStyle.font = $font("italic", baseFont.pointSize);
+  } else if (type === "underline") {
+    newStyle.underlineStyle = 1; // NSUnderlineStyleSingle
+  }
+
+  // 添加新样式并重新应用
+  styled.styles.push(newStyle);
+  editor.styledText = styled;
+  
+  // 失去焦点以查看效果
+  editor.blur();
+}
+```
+
+**代码解读**：
+
+1.  我们创建了一个 `text` 视图作为编辑器，以及一个包含三个按钮的工具栏。
+2.  核心逻辑在 `applyStyle` 函数中。
+3.  `editor.selectedRange` 获取用户当前选中的文本范围（起始位置和长度）。
+4.  `editor.styledText || { text: editor.text, styles: [] }` 这是一个关键技巧，用于获取当前的富文本对象，如果之前是纯文本，则基于当前文本创建一个新的富文本对象。
+5.  我们根据按钮类型，创建一个新的样式规则对象 `newStyle`，并指定其作用的 `range`。
+6.  最后，将新规则 `push` 到 `styles` 数组中，再把整个 `styled` 对象赋回给 `editor.styledText`，视图便会立即更新以反映新的样式。
+
+这个例子展示了 `text` 组件作为富文本编辑器的强大能力，其核心在于对 `styledText` 对象的编程化读写. 

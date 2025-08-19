@@ -261,3 +261,84 @@ subview.layout((make, view) => {
 ```js
 var icon = await $ui.selectIcon();
 ```
+
+---
+
+## 文件内容解读与示例
+
+### 用途说明
+
+本文档是 **JSBox 全局 UI 方法**的集合，这些方法提供了与用户进行交互的各种标准化、便捷的接口。它们不依附于任何特定视图，可以从代码的任何地方调用，用于处理导航、显示模态对话框（如提醒、菜单）、提供反馈（如 Toast、加载指示器）以及动态创建视图等。
+
+### API 详解 (按功能分类)
+
+#### 1. 导航 (Navigation)
+
+-   **`$ui.pop()`**: 在一个由 `$ui.push` 构建的导航栈中，返回上一级页面。
+-   **`$ui.popToRoot()`**: 直接返回到导航栈的第一个页面（根页面）。
+
+#### 2. 模态对话框 (Modal Dialogs)
+
+-   **`$ui.alert({title, message, actions})`**: 显示一个标准的**警告框**。用于向用户显示重要信息或提供需要用户做出选择的操作（如“确定”、“取消”）。可以快速调用 `$ui.alert("message")` 来进行简单的信息提示。
+-   **`$ui.action({title, message, actions})`**: 显示一个**操作表 (Action Sheet)**，从屏幕底部滑出选项列表。通常用于提供与当前上下文相关的一系列操作。在 iPad 上表现为 Popover。
+-   **`$ui.menu({items, handler, finished})`**: 一个更快捷的创建简单列表菜单的方式。它会显示一个列表，用户选择后，`handler` 会被调用并返回选择的标题和索引。
+-   **`$ui.popover({sourceView, views, items, ...})`**: 显示一个**浮窗 (Popover)**，通常用于 iPad 或作为按钮的附加菜单。它功能强大，支持两种模式：
+    1.  **列表模式**: 提供 `items` 数组，快速创建一个选择列表。
+    2.  **自定义视图模式**: 提供 `views` 数组，可以在浮窗内绘制任意自定义的 UI。
+
+#### 3. 用户反馈 (User Feedback)
+
+-   **`$ui.toast(message, duration)`**: 在屏幕下方显示一个短暂的、非阻塞的**轻提示**，几秒后自动消失。用于告知用户某个操作已完成。
+-   **`$ui.success(message)` / `$ui.warning(message)` / `$ui.error(message)`**: 带有状态颜色的 `toast`，分别显示绿色（成功）、黄色（警告）、红色（错误），能更直观地传达操作结果。
+-   **`$ui.loading(true/false)` 或 `$ui.loading("message")`**: 显示一个覆盖全屏的**加载指示器**，阻止用户操作。用于执行网络请求等耗时任务时，明确告知用户程序正在处理中。
+-   **`$ui.progress(value, message)`**: 显示一个带进度的加载指示器。`value` 是一个 0 到 1 之间的小数。当 `value` 超出这个范围时，指示器自动消失。非常适合用于显示文件下载、上传等任务的进度。
+
+#### 4. 内容预览与视图操作
+
+-   **`$ui.preview({url, html, text})`**: 使用系统原生的 `QLPreviewController` 快速预览内容，支持预览 URL、HTML 字符串或纯文本。
+-   **`$ui.create({type, props, ...})`**: **动态创建**一个视图实例，但不立即显示它。返回的视图对象可以被存储在变量中，之后再通过 `view.add(object)` 方法添加到某个父视图中。这是实现动态添加 UI 元素的核心方法。
+-   **`$ui.get(id)` 或 `$(id)`**: 通过 `id` 在当前视图层级中查找并返回一个视图实例，是获取和操作已存在视图最常用的方法。
+
+#### 5. 高级接口
+
+-   **`$ui.window` / `$ui.controller`**: 获取顶层的 `UIWindow` 和 `UIViewController` 对象，用于进行更底层的原生 UI 操作。
+-   **`$ui.title`**: 快捷地获取或设置当前页面的导航栏标题。
+-   **`$ui.selectIcon()`**: 弹出一个内置的图标库，让用户选择一个图标，返回图标名称。常用于应用的自定义功能中。
+
+### 示例：一个完整的交互流程
+
+```javascript
+async function main() {
+  // 1. 询问用户操作
+  const {title} = await $ui.menu({ items: ["获取天气", "显示图片"] });
+
+  if (title === "获取天气") {
+    // 2. 显示加载指示器
+    $ui.loading("正在获取天气...");
+    const resp = await $http.get("https://api.example.com/weather");
+    $ui.loading(false);
+
+    // 3. 显示结果
+    if (resp.data) {
+      $ui.alert({ title: "天气预报", message: resp.data.forecast });
+    } else {
+      $ui.error("获取失败");
+    }
+  } else if (title === "显示图片") {
+    // 4. 使用 Popover 提供选项
+    const { index } = await $ui.popover({
+      sourceView: $("someButton"), // 假设有一个按钮触发
+      items: ["风景", "动物"]
+    });
+
+    const imageUrl = index === 0 ? "url_for_scenery" : "url_for_animal";
+    
+    // 5. 预览图片
+    $ui.preview({ title: "图片预览", url: imageUrl });
+  }
+}
+```
+
+### 总结
+
+`$ui` 上的全局方法是 JSBox UI 框架的“工具箱”，提供了构建交互式应用所需的一切标准组件。熟练运用这些方法，可以轻松实现页面导航、用户输入、状态反馈和动态 UI 更新，是提升脚本用户体验的关键。

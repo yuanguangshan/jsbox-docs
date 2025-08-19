@@ -333,3 +333,114 @@ themeChanged: (sender, isDarkMode) => {
 ```
 
 更多控件如何使用请参考 [控件列表](component/label.md) 一章。
+
+---
+
+## 文件内容解读与示例
+
+### 用途说明
+
+本文档是 **JSBox UI 框架的“基类”文档**，详细介绍了 `type: "view"` 这个最基础的视图组件。`view` 是所有其他 UI 组件（如 `label`, `button`, `image` 等）的父类，因此，**本文档中介绍的所有属性、方法和事件，对于其他所有 UI 组件来说，都是通用的**。掌握 `view` 的能力，是理解和使用整个 UI 框架的基础。
+
+### 核心概念：视图实例 (View Instance)
+
+当你通过 `$ui.render` 或 `$ui.create` 创建一个界面元素后，你就可以通过代码（例如使用 `$(id)`) 获取到这个元素的**实例**。这个实例是一个对象，它暴露了大量的属性和方法，允许你在视图显示后，动态地查询其状态或修改其行为和外观。
+
+### 属性 (Props) 详解
+
+`props` 列表非常长，这里按功能分类解读一些最重要的属性：
+
+-   **外观**: `alpha` (透明度), `bgcolor` (背景色), `cornerRadius` (圆角), `borderWidth`/`borderColor` (边框), `tintColor` (着色，影响子视图如图标), `hidden` (是否隐藏)。
+-   **位置与大小**: `frame`, `size`, `center`。这些属性既可读也可写，但**强烈建议**通过 Auto Layout 进行布局，只在必要时读取它们的值。
+-   **层级关系**: `super` (父视图), `views` (子视图数组), `prev`/`next` (同级的前后视图)。这些都是只读的，用于在视图树中导航。
+-   **交互**: `userInteractionEnabled` (是否响应点击), `multipleTouchEnabled` (是否支持多点触控)。
+-   **数据绑定**: `info` 是一个非常有用的“杂物箱”，你可以在这个对象里存取任何自定义的数据，将其与视图实例关联起来。
+-   **无障碍 (Accessibility)**: `isAccessibilityElement`, `accessibilityLabel` 等属性用于适配 iOS 的“旁白”功能，让视障用户也能使用你的脚本。
+
+### 方法 (Methods) 详解
+
+这些方法提供了动态操作视图的能力。
+
+-   **布局相关**:
+    -   `layout(make => ...)`: 为通过 `$ui.create` 创建的、尚未布局的视图设置约束。
+    -   `updateLayout(make => ...)`: **更新**已存在的约束。例如，改变一个视图的高度。只能修改，不能添加新约束。
+    -   `remakeLayout(make => ...)`: **重置**所有约束。性能开销比 `updateLayout` 大，但更灵活，可以完全改变布局逻辑。
+    -   `setNeedsLayout()` / `layoutIfNeeded()`: 手动控制布局刷新时机，用于需要立即获取更新后 `frame` 的高级场景。
+
+-   **视图层级操作**:
+    -   `add(view)`: 添加一个子视图。
+    -   `remove()`: 将视图从其父视图中移除。
+    -   `insert...`, `moveTo...`: 提供对子视图顺序的精细控制。
+
+-   **变换与效果**:
+    -   `scale(number)`, `rotate(number)`: 快速应用缩放和旋转变换。
+    -   `snapshotWithScale(scale)`: 对视图进行“截图”，返回一个 `image` 对象。
+
+### 事件 (Events) 详解
+
+-   **`ready`**: 视图**初始化完成**后触发。这是最早可以安全访问视图所有属性和方法的地方，非常适合在这里执行一些初始设置。
+-   **`tapped`**: 最常用的事件，响应单击。
+-   **`pencilTapped`**: 专门用于响应 Apple Pencil 的双击操作。
+-   **`hoverEntered` / `hoverExited`**: 用于适配 iPadOS 的触控板/鼠标，当指针进入或离开视图区域时触发。
+-   **`themeChanged`**: 监听亮色/暗色模式的切换。
+
+### 页面级组件 (`navButtons`, `titleView`)
+
+-   **`navButtons`**: 在页面的 `props` 中定义，用于在导航栏右侧创建自定义按钮。每个按钮都可以有标题、图标、事件处理器，甚至可以关联一个下拉菜单 (`menu`)。
+-   **`titleView`**: 同样在页面 `props` 中定义，允许你用一个完全自定义的视图来替换导航栏中央的标题文本。例如，可以用一个 `tab` 视图作为 `titleView` 来实现分段选择器。
+
+### 示例：动态修改视图
+
+```javascript
+$ui.render({
+  props: { title: "View 实例操作" },
+  views: [
+    {
+      type: "view",
+      props: {
+        id: "myBox",
+        bgcolor: $color("blue"),
+        cornerRadius: 10
+      },
+      layout: (make, view) => {
+        make.center.equalTo(view.super);
+        make.size.equalTo($size(100, 100));
+      },
+      events: {
+        ready: (sender) => {
+          // 视图准备好后，绑定一个自定义信息
+          sender.info = { creationTime: new Date() };
+          console.log("Box created at: " + sender.info.creationTime);
+        }
+      }
+    },
+    {
+      type: "button",
+      props: { title: "变色并放大" },
+      layout: (make, view) => {
+        make.top.equalTo($("myBox").bottom).offset(20);
+        make.centerX.equalTo(view.super);
+      },
+      events: {
+        tapped: () => {
+          // 获取 myBox 实例并操作它
+          const box = $("myBox");
+          box.bgcolor = $color("red");
+          box.updateLayout(make => {
+            make.size.equalTo($size(150, 150));
+          });
+          // 动画地应用布局变化
+          $ui.animate({ 
+            duration: 0.4,
+            animation: () => box.relayout()
+          });
+        }
+      }
+    }
+  ]
+});
+```
+
+### 总结
+
+`view` 是 JSBox UI 宇宙中的“原子”。本文档中详述的属性、方法和事件构成了整个 UI 框架的通用能力集。无论你使用哪种更具体的组件，它们都继承了 `view` 的这些基本特性。因此，深入理解本文档是进行任何高级 UI 编程、实现动态和交互式界面的前提。

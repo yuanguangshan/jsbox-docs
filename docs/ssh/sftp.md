@@ -213,3 +213,100 @@ sftp.copy({
 ```
 
 注：以上所有的 handler 也可以通过 async/await 实现。
+
+---
+
+## 文件内容解读与示例
+
+### 用途说明
+
+本文档详细介绍了 `session.sftp` 对象。`sftp` 是 **SSH File Transfer Protocol** 的缩写，它在 SSH 的安全连接基础上，提供了一套丰富的接口用于**操作远程服务器上的文件和目录**。相较于 `channel` 提供的基础 `upload`/`download`，`sftp` 提供了更全面、更强大的文件管理能力，类似于在本地用 `$file` API 操作文件。
+
+### 核心概念：远程文件系统操作
+
+`sftp` 的核心是让你能够像操作本地文件一样去管理远程服务器上的文件。所有操作都是通过已建立的 SSH `session` 进行，因此继承了 SSH 的安全性。
+
+-   **连接管理**: 在执行任何 SFTP 操作之前，必须先显式调用 `sftp.connect()` 来建立 SFTP 连接。这是一个独立于 SSH 会话连接的步骤。
+-   **异步操作**: 所有 SFTP 操作都是异步的。你可以使用传统的回调函数 `handler`，或者更现代、更易读的 `async/await` 语法来处理操作结果。
+
+### API 详解 (按功能分类)
+
+**连接管理**
+-   `sftp.connect()`: 初始化 SFTP 会话。在使用任何其他 SFTP 方法前必须调用。推荐使用 `await sftp.connect()`。
+
+**目录操作**
+-   `sftp.directoryExists({path, handler})`: 检查指定路径的目录是否存在。
+-   `sftp.createDirectory({path, handler})`: 在远程服务器上创建新目录。
+-   `sftp.removeDirectory({path, handler})`: 删除一个**空**目录。
+-   `sftp.contentsOfDirectory({path, handler})`: 列出指定目录下的所有文件和子目录，返回一个包含文件信息对象的数组。
+
+**文件操作**
+-   `sftp.fileExists({path, handler})`: 检查指定路径的文件是否存在。
+-   `sftp.removeFile({path, handler})`: 删除一个文件。
+-   `sftp.moveItem({src, dest, handler})`: 移动或重命名一个文件或目录。
+-   `sftp.copy({path, dest, progress, handler})`: 复制远程服务器上的一个文件到另一个位置。
+-   `sftp.createSymbolicLink({path, dest, handler})`: 创建一个符号链接（软链接）。
+
+**文件读写**
+-   `sftp.contents({path, handler})`: 读取远程文件的**完整内容**并返回一个二进制数据对象（`$data` 类型）。适合读取小文件。
+-   `sftp.write({file, path, progress, handler})`: 将本地的二进制数据（`$data` 对象）写入到远程文件。如果文件已存在，会**覆盖**其内容。
+-   `sftp.append({file, path, handler})`: 将本地的二进制数据**追加**到远程文件的末尾。
+
+**文件信息**
+-   `sftp.infoForFile({path, handler})`: 获取单个文件或目录的详细属性，如大小、修改日期、权限等。返回一个结构化的 `file` 对象。
+
+### 示例：同步本地日志文件到服务器
+
+这个示例将演示如何使用 `async/await` 语法，将本地的一个日志文件上传到服务器的备份目录中，并以日期命名。
+
+```javascript
+// (需先通过 $ssh.connect 获得 session 对象)
+
+async function syncLogFile(session) {
+  const sftp = session.sftp;
+
+  try {
+    // 1. 建立 SFTP 连接
+    $ui.loading("正在连接 SFTP...");
+    await sftp.connect();
+    console.log("SFTP 连接成功");
+
+    // 2. 检查并创建远程备份目录
+    const remoteBaseDir = "/var/log/backups";
+    const exists = await sftp.directoryExists({ path: remoteBaseDir });
+    if (!exists) {
+      console.log(`目录 ${remoteBaseDir} 不存在，正在创建...`);
+      await sftp.createDirectory({ path: remoteBaseDir });
+    }
+
+    // 3. 准备要上传的文件和远程路径
+    const logContent = "This is a log entry at " + new Date();
+    const logData = $data({ string: logContent });
+    const remoteFileName = `log-${new Date().toISOString().split('T')[0]}.txt`;
+    const remotePath = `${remoteBaseDir}/${remoteFileName}`;
+
+    // 4. 将日志内容追加到远程文件
+    $ui.loading(`正在上传日志到 ${remotePath}`)
+    await sftp.append({ file: logData, path: remotePath });
+
+    // 5. 获取上传后的文件信息进行验证
+    const fileInfo = await sftp.infoForFile({ path: remotePath });
+    $ui.success(`日志追加成功！\n文件大小: ${fileInfo.fileSize} 字节`);
+
+  } catch (error) {
+    $ui.error("SFTP 操作失败");
+    console.error(error);
+  } finally {
+    // 6. 关闭连接
+    sftp.disconnect();
+    $ssh.disconnect();
+  }
+}
+
+// 假设 session 已经获取
+// syncLogFile(session);
+```
+
+### 总结
+
+`session.sftp` 是 JSBox 中进行远程文件管理的瑞士军刀。它提供了一套完整、强大且易于使用的 API，无论是简单的文件同步，还是复杂的远程文件系统操作，`sftp` 都能胜任。结合 `async/await` 语法，可以写出逻辑清晰、易于维护的远程文件管理脚本。

@@ -320,3 +320,108 @@ canMoveItem: function(sender, indexPath) {
 上述代码将会使得除了第一个以外的内容都可以被长按排序。
 
 简单说，我们通常需要在 `reorderMoved` 和 `reorderFinished` 里面对 `data` 进行一些处理。
+
+---
+
+## 文件内容解读与示例
+
+### 组件用途
+
+`matrix`（矩阵）组件用于创建**多列网格**布局的视图。当你需要展示一系列项目，并且单列的 `list` 布局无法满足需求时，`matrix` 就是最佳选择。它非常适合用于构建应用启动器（类似 iOS 主屏幕）、相册、商品分类展示等界面。
+
+### 核心概念：一个会分栏的 `list`
+
+理解 `matrix` 最快的方式，就是将它看作一个 `list` 的变体。它的核心工作机制，包括**模板（template）与数据（data）的绑定方式，与 `list` 组件是完全一致的**。如果你已经理解了 `list` 的模板系统，那么你已经掌握了 `matrix` 90% 的内容。
+
+`matrix` 与 `list` 的根本区别在于定义布局的 `props` 不同。
+
+### 网格布局核心属性
+
+- **`columns`**: 定义网格的**列数**。这是最常用的布局属性。`matrix` 会根据自身的宽度、列数和间距，自动计算出每个项目的宽度。
+- **`itemHeight`**: 与 `columns` 配合使用，定义每个网格项的**固定高度**。
+- **`spacing`**: 定义网格项之间（包括水平和垂直方向）的**间距**。
+- **`itemSize`**: 另一种布局方式，不指定列数，而是直接指定每个网格项的**确切尺寸**（`$size(width, height)`）。`matrix` 会在一行内尽可能多地放置项目。
+- **`waterfall`**: 瀑布流布局。设置为 `true` 后，`matrix` 允许每个项目有**不同的高度**，从而形成错落有致的瀑布流效果。这通常需要配合 `itemSize` 事件动态计算每个项目的高度。
+
+### 示例代码：应用启动器界面
+
+下面的示例将创建一个类似手机主屏幕的应用启动器，其中每个图标和名称都是一个 `matrix` 的网格项。
+
+```javascript
+// 1. 定义网格项的模板
+const appTemplate = {
+  views: [
+    // 应用图标
+    {
+      type: "image",
+      props: {
+        id: "app-icon",
+        contentMode: $contentMode.scaleAspectFit
+      },
+      layout: (make, view) => {
+        make.centerX.equalTo(view.super);
+        make.top.inset(10);
+        make.size.equalTo($size(50, 50));
+      }
+    },
+    // 应用名称
+    {
+      type: "label",
+      props: {
+        id: "app-name",
+        font: $font(12),
+        align: $align.center
+      },
+      layout: (make, view) => {
+        make.top.equalTo($("app-icon").bottom).offset(5);
+        make.left.right.inset(5);
+      }
+    }
+  ]
+};
+
+// 2. 准备数据源
+const appData = [
+  { app_icon: { symbol: "sun.max.fill" }, app_name: { text: "天气" } },
+  { app_icon: { symbol: "calendar" }, app_name: { text: "日历" } },
+  { app_icon: { symbol: "camera.fill" }, app_name: { text: "相机" } },
+  { app_icon: { symbol: "envelope.fill" }, app_name: { text: "邮件" } },
+  { app_icon: { symbol: "music.note" }, app_name: { text: "音乐" } },
+  { app_icon: { symbol: "gearshape.fill" }, app_name: { text: "设置" } },
+  { app_icon: { symbol: "map.fill" }, app_name: { text: "地图" } },
+  { app_icon: { symbol: "photo.on.rectangle" }, app_name: { text: "照片" } },
+];
+
+// 3. 渲染矩阵视图
+$ui.render({
+  props: { title: "应用启动器" },
+  views: [
+    {
+      type: "matrix",
+      props: {
+        columns: 4, // 4列
+        itemHeight: 90, // 每个项目高90
+        spacing: 15, // 间距15
+        template: appTemplate,
+        data: appData
+      },
+      layout: $layout.fill,
+      events: {
+        didSelect: (sender, indexPath, data) => {
+          const appName = data["app-name"].text;
+          $ui.alert(`打开 "${appName}"`);
+        }
+      }
+    }
+  ]
+});
+```
+
+**代码解读**：
+
+1.  **模板 (`appTemplate`)**: 我们定义了一个包含 `id: "app-icon"` 的图片和 `id: "app-name"` 的标签的单元格蓝图。
+2.  **数据 (`appData`)**: 数组中的每个对象都精确地映射到模板中的 ID，为 `app-icon` 提供 `symbol`，为 `app-name` 提供 `text`。
+3.  **布局属性**: 我们通过 `columns: 4`, `itemHeight: 90`, `spacing: 15` 这三个属性，轻松地定义了一个 4 列、固定行高、有固定间距的网格布局。
+4.  **交互**: `didSelect` 事件的用法与 `list` 完全相同，让我们能方便地获取被点击项的数据。
+
+总而言之，`matrix` 是 `list` 在多列布局场景下的自然延伸。只要你掌握了 `list` 的模板思想，再结合 `columns` 等几个特有的布局属性，就能轻松构建出丰富的网格界面。 

@@ -189,8 +189,6 @@ actions: [
 ]
 ```
 
-定义了两个滑动操作选项，标题分别是 `delete` 和 `share`。
-
 可以通过 `swipeEnabled` 函数来决定某一行是否能被滑动：
 
 ```js
@@ -489,3 +487,162 @@ $("list").scrollTo({
 此外，`list` 也是继承自 `scroll`，也会拥有 scroll 有的全部事件回调。
 
 可见 list 并不简单，可以参考 `uikit-list.js` 和 `uikit-catalog.js` 获得更多信息。
+
+---
+
+## 文件内容解读与示例
+
+### 组件用途
+
+`list`（列表）是 JSBox 中功能最强大、用途最广泛的组件，没有之一。它是所有数据驱动界面的基石，用于展示垂直滚动的、可长可短的数据集合。从简单的设置菜单，到复杂的联系人列表、新闻 Feed 流，其核心都是 `list` 组件。虽然初看复杂，但一旦掌握，便能构建出功能完善的应用级界面。
+
+### 核心概念：模板与数据绑定
+
+要精通 `list`，就必须理解其核心设计思想：**视图模板（template）与数据源（data）的分离与绑定**。
+
+1.  **模板 (`template`)**: 
+    - 它是一个**视图蓝图**，定义了列表中**每一行长什么样**。
+    - 你可以在 `template` 中像设计普通 `view` 一样，放入 `label`, `image`, `button` 等各种组件，并为它们设置 `id`。
+    - 这个模板只会被创建一次，然后被高效地复用（dequeue）来显示所有行，这保证了即使有成千上万行数据，列表也能流畅滚动。
+
+2.  **数据源 (`data`)**: 
+    - 它是一个**纯数据数组**，负责为模板提供“填充物”。
+    - 数组中的每一个对象都对应列表中的一行。
+    - 对象中的 `key` 必须与 `template` 中视图的 `id` 相对应，`value` 则是一个 `props` 对象，用于设置该视图的属性。
+
+**绑定过程解析**：
+
+想象一下流水线作业：`template` 是一个模具，`data` 数组是原材料。列表滚动的过程中，系统不断地从 `data` 中取出一条数据，然后用这条数据去“填充”模具，生成一行最终的视图。
+
+```javascript
+// 模板：定义了行内有哪些控件，以及它们的 ID
+template: {
+  views: [
+    { type: "image", props: { id: "avatar" } },
+    { type: "label", props: { id: "name" } }
+  ]
+}
+
+// 数据：为模板中的控件提供具体内容
+data: [
+  {
+    avatar: { src: "url_to_image_1" }, // 填充 id="avatar" 的 image
+    name: { text: "张三" } // 填充 id="name" 的 label
+  },
+  {
+    avatar: { src: "url_to_image_2" },
+    name: { text: "李四" }
+  }
+]
+```
+
+### 关键特性一览
+
+- **行选择 (`didSelect`)**: 用户点击某一行时触发，是列表最重要的交互事件。回调函数会直接返回该行的 `data` 和 `indexPath`（位置索引），极其方便。
+- **自动行高 (`autoRowHeight`)**: 设置为 `true` 并为模板内视图添加好约束后，列表可以自动计算并适配每行的高度，完美支持显示长度不一的文本内容。
+- **下拉刷新与上拉加载**: 分别通过 `pulled`（继承自 `scroll`）和 `didReachBottom` 事件实现。这是构建信息流（Feeds）应用的标配功能。
+- **左滑操作 (`actions`)**: 通过定义 `actions` 数组，可以轻松为每一行添加“删除”、“分享”等滑动操作按钮。
+- **长按排序 (`reorder`)**: 设置 `reorder: true` 并实现相关事件，即可让用户通过长按拖拽来改变列表项的顺序。
+
+### 示例代码：一个经典的联系人列表
+
+这个示例将创建一个包含头像、姓名和邮箱的自定义列表，并响应用户的点击事件。
+
+```javascript
+// 1. 定义列表模板
+const contactTemplate = {
+  props: {
+    // 设置行高
+    height: 70
+  },
+  views: [
+    // 头像
+    {
+      type: "image",
+      props: {
+        id: "avatar",
+        radius: 25 // 圆角
+      },
+      layout: (make, view) => {
+        make.left.top.bottom.inset(10);
+        make.width.equalTo(view.height);
+      }
+    },
+    // 姓名
+    {
+      type: "label",
+      props: {
+        id: "name",
+        font: $font("bold", 17)
+      },
+      layout: (make, view) => {
+        make.left.equalTo($("avatar").right).offset(10);
+        make.top.inset(12);
+      }
+    },
+    // 邮箱
+    {
+      type: "label",
+      props: {
+        id: "email",
+        font: $font(14),
+        textColor: $color("gray")
+      },
+      layout: (make, view) => {
+        make.left.equalTo($("name"));
+        make.bottom.inset(12);
+      }
+    }
+  ]
+};
+
+// 2. 准备数据源
+const contactData = [
+  {
+    avatar: { src: "https://randomuser.me/api/portraits/men/32.jpg" },
+    name: { text: "John Appleseed" },
+    email: { text: "john.appleseed@icloud.com" }
+  },
+  {
+    avatar: { src: "https://randomuser.me/api/portraits/women/44.jpg" },
+    name: { text: "Kate Bell" },
+    email: { text: "kate.bell@jsbox.com" }
+  },
+  {
+    avatar: { src: "https://randomuser.me/api/portraits/men/42.jpg" },
+    name: { text: "Daniel Higgins Jr." },
+    email: { text: "daniel.higgins@work.com" }
+  }
+];
+
+// 3. 渲染列表
+$ui.render({
+  props: { title: "联系人" },
+  views: [
+    {
+      type: "list",
+      props: {
+        template: contactTemplate,
+        data: contactData
+      },
+      layout: $layout.fill,
+      events: {
+        didSelect: (sender, indexPath, data) => {
+          // 点击事件，data 参数就是上面 contactData 数组中的一项
+          const contactName = data.name.text;
+          $ui.alert(`你选择了 ${contactName}`);
+        }
+      }
+    }
+  ]
+});
+```
+
+**代码解读**：
+
+1.  我们首先定义了 `contactTemplate`，它描述了一行联系人的外观：左边是 `id: "avatar"` 的图片，右边是 `id: "name"` 和 `id: "email"` 的两个标签。
+2.  然后，我们创建了 `contactData` 数组。数组中每个对象的 `key` (`avatar`, `name`, `email`) 都与模板中视图的 `id` 完美对应。
+3.  最后，在 `list` 的 `props` 中，我们将 `template` 和 `data` 传入。JSBox 会自动完成剩下的所有绑定工作。
+4.  在 `didSelect` 事件中，我们可以直接使用 `data` 参数，它就是被点击行对应的数据源对象，从中取值非常方便。
+
+`list` 组件是 JSBox UI 的核心，虽然初学时概念较多，但一旦你掌握了“模板-数据”分离绑定的思想，就能用它来构建任何数据驱动的复杂界面。 

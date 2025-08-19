@@ -176,3 +176,130 @@ const spacing = stackView.stack.spacingAfterView(arrangedView);
 # 示例代码
 
 相较于其他类型的视图，stack view 并不那么容易理解，所以我们构建了一个示例项目，方便让你理解上述的这些属性是如何工作的：https://github.com/cyanzhong/xTeko/blob/master/extension-demos/stack-view
+
+---
+
+## 文件内容解读与示例
+
+### 组件用途
+
+`stack`（堆栈）是一个不渲染自身、专门用于**自动布局**其内部子视图的强大容器。它极大地简化了将多个视图组织成水平行或垂直列的布局过程。你无需再为每个视图手动编写繁琐的 Auto Layout 约束，只需将它们放入 `stack` 中，并设置几个关键属性，即可实现整齐、自适应的布局。它类似于 Web 开发中的 Flexbox 或 SwiftUI 中的 `HStack`/`VStack`。
+
+### 核心语法：独特的 `stack` 属性
+
+使用 `stack` 组件时，有一个必须记住的、与其他容器都不同的语法规则：所有受其管理的子视图，都必须放在 `props` 内部一个名为 `stack` 的对象里的 `views` 数组中。
+
+```javascript
+{
+  type: "stack",
+  props: {
+    // ... stack 的布局属性
+    stack: { // 注意这个层级
+      views: [
+        // ... 这里是所有被 stack 管理的子视图
+      ]
+    }
+  }
+}
+```
+
+### 核心布局属性
+
+- **`axis` (轴向)**: `stack` 的最基本属性，决定了子视图的排列方向。
+  - `$stackViewAxis.vertical`: **垂直**排列，形成一列。
+  - `$stackViewAxis.horizontal`: **水平**排列，形成一行。
+
+- **`distribution` (分布)**: 决定了子视图在 `axis` 方向上如何被调整大小和放置。
+  - `.fillEqually`: **等尺寸**填充，所有子视图在 `axis` 方向上获得相同的尺寸。
+  - `.equalSpacing`: **等间距**分布，子视图保持自身大小，它们之间的间距被拉伸至相等。
+  - `.fill`: 填充，`stack` 会尝试拉伸其中一个子视图来填满所有可用空间。
+
+- **`alignment` (对齐)**: 决定了子视图在**垂直于 `axis` 的方向**上如何对齐。
+  - 对于 `vertical` 轴向：控制**水平**对齐 (`.leading` 左, `.center` 中, `.trailing` 右)。
+  - 对于 `horizontal` 轴向：控制**垂直**对齐 (`.top` 上, `.center` 中, `.bottom` 下)。
+  - `.fill`: 子视图被拉伸以填满交叉轴方向的空间。
+
+- **`spacing` (间距)**: 一个数字，定义了相邻子视图之间的固定间距。
+
+### 示例代码：使用嵌套 `stack` 构建复杂布局
+
+下面的示例将通过嵌套 `stack` 来创建一个包含头像、用户名、简介和统计信息的用户卡片，这在手动布局下会非常繁琐。
+
+```javascript
+$ui.render({
+  props: { title: "Stack 组件示例" },
+  views: [
+    {
+      // 最外层的垂直 stack，用于整体布局
+      type: "stack",
+      props: {
+        axis: $stackViewAxis.vertical,
+        alignment: $stackViewAlignment.fill,
+        spacing: 15,
+        bgcolor: $color("#F5F5F5"),
+        radius: 10,
+        stack: {
+          views: [
+            // --- 顶部用户信息区域 (水平 stack) ---
+            {
+              type: "stack",
+              props: {
+                axis: $stackViewAxis.horizontal,
+                alignment: $stackViewAlignment.center,
+                spacing: 10,
+                stack: {
+                  views: [
+                    { type: "image", props: { symbol: "person.crop.circle.fill", tintColor: $color("gray"), frame: { width: 60, height: 60 } } },
+                    {
+                      // 用户名和简介的垂直 stack
+                      type: "stack",
+                      props: {
+                        axis: $stackViewAxis.vertical,
+                        alignment: $stackViewAlignment.leading,
+                        stack: {
+                          views: [
+                            { type: "label", props: { text: "JSBox User", font: $font("bold", 18) } },
+                            { type: "label", props: { text: "热爱编程，探索世界。", textColor: $color("gray") } }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            // --- 底部统计数据区域 (水平 stack) ---
+            {
+              type: "stack",
+              props: {
+                axis: $stackViewAxis.horizontal,
+                distribution: $stackViewDistribution.fillEqually,
+                stack: {
+                  views: [
+                    { type: "label", props: { text: "108\n帖子", lines: 0, align: $align.center } },
+                    { type: "label", props: { text: "4.2K\n关注者", lines: 0, align: $align.center } },
+                    { type: "label", props: { text: "360\n关注中", lines: 0, align: $align.center } }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      layout: (make, view) => {
+        make.center.equalTo(view.super);
+        make.left.right.inset(20);
+      }
+    }
+  ]
+});
+```
+
+**代码解读**：
+
+1.  我们使用了一个**垂直**的 `stack` 作为最外层的容器。
+2.  容器的第一个子元素是另一个**水平** `stack`，用于并排摆放“头像”和“文字信息区”。
+3.  在“文字信息区”内部，我们又用了一个**垂直** `stack` 来上下摆放“用户名”和“简介”。
+4.  容器的第二个子元素是一个**水平** `stack`，我们设置了 `distribution: .fillEqually`，使得“帖子”、“关注者”、“关注中”这三个 `label` **平分**了所有水平空间，达到了整齐排列的效果。
+
+这个例子充分展示了通过**嵌套**不同轴向和属性的 `stack`，可以轻松构建出清晰、自适应的复杂布局。 
